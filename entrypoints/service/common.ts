@@ -11,11 +11,6 @@ async function common(message: any) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${config.token[config.service]}`
         });
-
-        if(config.service === services.openrouter){
-            headers.append('HTTP-Referer', 'https://fluent.thinkstu.com');
-            headers.append('X-Title', 'FluentRead');
-        }
                 
         const url = config.proxy[config.service] || urls[config.service];
 
