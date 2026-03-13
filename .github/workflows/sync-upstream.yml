@@ -1,0 +1,84 @@
+name: Sync Upstream Repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_repo:
+        description: 'Upstream Repository URL to sync from'
+        required: true
+        type: string
+        default: 'https://github.com/Bistutu/FluentRead.git'
+      upstream_branch:
+        description: 'Upstream branch to sync'
+        required: true
+        type: string
+        default: 'main'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create sync branch
+        run: |
+          BRANCH_NAME="sync/upstream-${{ github.run_number }}"
+          git checkout -b $BRANCH_NAME
+          echo "SYNC_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream ${{ inputs.upstream_repo }} || true
+          git remote set-url upstream ${{ inputs.upstream_repo }}
+
+      - name: Fetch upstream code
+        run: |
+          git fetch upstream ${{ inputs.upstream_branch }}
+
+      - name: Merge upstream code
+        run: |
+          git merge upstream/${{ inputs.upstream_branch }} -m "chore: sync from ${{ inputs.upstream_repo }}"
+        continue-on-error: true
+
+      - name: Check merge conflicts
+        id: check_conflicts
+        run: |
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "conflicts=true" >> $GITHUB_OUTPUT
+          else
+            echo "conflicts=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push sync branch
+        if: steps.check_conflicts.outputs.conflicts == 'false'
+        run: |
+          git push origin ${{ env.SYNC_BRANCH }}
+
+      - name: Create Pull Request
+        if: steps.check_conflicts.outputs.conflicts == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "chore: sync upstream code from ${{ inputs.upstream_branch }}" \
+            --body "Automatically sync from upstream repository\n\nUpstream repository: ${{ inputs.upstream_repo }}\nUpstream branch: ${{ inputs.upstream_branch }}" \
+            --base main \
+            --head ${{ env.SYNC_BRANCH }}
+
+      - name: Fail if there are merge conflicts
+        if: steps.check_conflicts.outputs.conflicts == 'true'
+        run: |
+          echo "❌ merge conflicts detected. Please resolve them manually."
+          exit 1
