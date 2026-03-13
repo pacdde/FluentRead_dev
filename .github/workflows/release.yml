@@ -43,6 +43,6 @@ jobs:
         #   WXT_GOOGLE_CLIENT_ID: ${{ secrets.WXT_GOOGLE_CLIENT_ID }}
 
       - name: Upload Extension Zip to Release
-        run: gh release upload .output/*-*.zip --clobber
+        run: gh release upload "$GITHUB_REF_NAME" .output/*-*.zip --clobber
         env:
           GH_TOKEN: ${{ github.token }}
