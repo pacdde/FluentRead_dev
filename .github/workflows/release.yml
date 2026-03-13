@@ -25,6 +25,16 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
       
+      - name: Create GitHub Release (if missing)
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Release for $GITHUB_REF_NAME" \
+            --draft=false \
+            --prerelease=false
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
       - name: Build and Zip Extension
         run: |
           pnpm zip
@@ -33,6 +43,6 @@ jobs:
         #   WXT_GOOGLE_CLIENT_ID: ${{ secrets.WXT_GOOGLE_CLIENT_ID }}
 
       - name: Upload Extension Zip to Release
-        run: gh release upload "$GITHUB_REF_NAME" .output/*-*.zip --clobber
+        run: gh release upload .output/*-*.zip --clobber
         env:
           GH_TOKEN: ${{ github.token }}
